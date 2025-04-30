@@ -23,12 +23,9 @@
 
 20250425：
 
-视频教程： https://www.bilibili.com/video/BV1jxLUz9ECX
 
 `Chatgpt节点`: 
 新增Comfly_gpt_image_1和Comfly_gpt_image_1_edit官方gpt_image_1模型api接口节点。
-
-![image](https://github.com/user-attachments/assets/9d08d5fc-dde9-4523-955c-31652a74f1a5)
 
 模型名都是gpt_image_1，区别只是分组不同：
 
@@ -105,93 +102,5 @@ opacity：水印的不透明度，取值范围0-1，1表示完全不透明，默
 
 </details> 
 
-
-20250401：
-`所有节点`: 所有调用apikey的节点新增apikey输入框。优化可灵图生图视频节点。
-
-20250329：
-`Chatgpt节点`: 新增openai的ComflyChatGPTApi节点，。
-目前单图和多图输入，文本输入，生成图片，图片编辑.使用的是 https://ai.comfly.chat 的 api key
-固定一次生成消耗0.06元（显示是逆向api，稳定性还不高，想尝鲜的可以注册网站用免费送的0.2美金玩玩）
-速度不快，因为官网速度也不快，所以需要点耐心。 files输入接口还没有完善，先忽略。
-用sora_image现在先对稳定点
-
-<details>
-<summary>查看更新/Update </summary>  
- 
-![fdedd73cffa278d2a8cf81478b58e90](https://github.com/user-attachments/assets/36e78cdd-33b2-41ed-a15c-ad9c1886bede)
-
-
-![0a2394c0b41efe190a5d0880f4c584b](https://github.com/user-attachments/assets/267fbe73-7113-4120-a829-a7aa2247bd4d)
-
-</details> 
-
-
-20250325：
-
-`Kling节点`: 新增可灵Comfly_lip_sync对口型节点，生成效果还行吧。速度也一般般。支持中文和英文。
-
-`Gemmi节点`: ComflyGeminiAPI节点resolution新增：object_image size,subject_image size,scene_image size根据输入的图片的尺寸来确定输出图片的尺寸。增加image url输出接口。
-
-`Doubao豆包节点`: ComflySeededit节点文字驱动生成图片，编辑图片。支持添加自己的水印logo。目前只支持单图修改和参考。使用的是 https://ai.comfly.chat 的 api key
-
-用于编辑图像的提示词 。建议：
-
-添加/删除实体：添加/删除xxx（删除图上的女孩/添加一道彩虹）
-
-修改实体：把xxx改成xxx（把手里的鸡腿变成汉堡）
-
-修改风格：改成xxx风格（改成漫画风格）
-
-修改色彩：把xxx改成xx颜色（把衣服改成粉色的）
-
-修改动作：修改表情动作（让他哭/笑/生气）
-
-修改环境背景：背景换成xxx，在xxx（背景换成海边/在星空下）
-
-1：图片格式：JPG(JPEG), PNG, BMP 等常见格式, 建议使用JPG格式.
-
-2：图片要求：小于4.7 MB，小于4096*4096
-
-3：长边与短边比例在3以内，超出此比例或比例相对极端，会导致报错
-
-<details>
-
-<summary>查看更新/Update </summary>
-
-![95836fbdda83551ca81ebc3db93b2d5](https://github.com/user-attachments/assets/0ce70dd3-eb0a-4e2e-bf6c-68642a48288d)
-
-![563e17009b9100533f169aa1d87b37f](https://github.com/user-attachments/assets/48bd20e9-9d87-43d7-aa81-370c7c7f1bec)
-
-
-</details>
-
-20250321：`Gemmi节点`: 谷歌ComflyGeminiAPI节点支持生成文生多图（最多4张，控制时间）。
-支持多图片参考，我是借用google labs的whisk思路，我感觉比较实用，并不需要太多参考图，3种足够.无需谷歌账户和梯子魔法就能用。使用的是 https://ai.comfly.chat 的 api key
-<details>
-<summary>查看更新/Update </summary>  
- 
-![微信图片_20250321225149](https://github.com/user-attachments/assets/593f479b-51d5-476e-bcf7-f36c4f01eb29)
-
-</details> 
-
-20250319：`Gemmi节点`: 新增谷歌ComflyGeminiAPI节点，gemini-2.0-flash-exp-image多模态模型。
-目前只支持简单的单图输入和输出，图片回复，图片编辑.
-<details>
-<summary>查看更新/Update </summary>  
- 
-![微信图片_20250319214344](https://github.com/user-attachments/assets/4ef9216d-1a27-4b71-a5f9-ad4ef4bfc7eb)
-
-
-</details> 
-
-20250318：`kling节点`: 新增可灵文生视频，图生视频，视频延长（只支持v1.0模型）3个节点.
-可灵视频生成时间大概要5-6分钟左右，使用的是 https://ai.comfly.chat 的 api key.
-<details>
-<summary>查看更新/Update </summary>  
- 
-![微信图片_20250318201313](https://github.com/user-attachments/assets/96836710-95f7-4100-96ed-58e5d6553124)
-
-</details> 
 
 
