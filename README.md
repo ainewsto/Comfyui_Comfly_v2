@@ -81,26 +81,3 @@
 
 
 </details> 
-
-20250418：
-`jimeng即梦节点`: 新增即梦的ComflyJimengApi节点。
-目前只支持文生图，使用的是 https://ai.comfly.chat 的 api key
-
-参数说明：
-use_pre_llm：开启文本扩写，会针对输入prompt进行扩写优化，如果输入prompt较短建议开启，如果输入prompt较长建议关闭。
-scale：影响文本描述的程度，默认值：2.5，取值范围：[1, 10]
-width，height：生成图像的宽和高，默认值：1328，取值范围：[512, 2048]
-add_logo：是否添加水印。True为添加，False不添加。默认不添加
-opacity：水印的不透明度，取值范围0-1，1表示完全不透明，默认0.3
-
-<details>
-<summary>查看更新/Update </summary>  
- 
-![3c1a498bea1853be7aafda2d7ea41b1](https://github.com/user-attachments/assets/13b84330-25d0-420b-9111-8e653f3ada99)
-
-![16be3f66454ae4a74c7c5bc723f847f](https://github.com/user-attachments/assets/96351739-bbcb-476b-a516-1a6a265151db)
-
-</details> 
-
-
-
