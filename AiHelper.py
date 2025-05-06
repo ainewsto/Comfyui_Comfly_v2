@@ -115,7 +115,6 @@ for route in routes:
     cors.add(resource.add_route("GET", route[1]))
     cors.add(resource.add_route("POST", route[1]))
 
-
 def start_api_server():
    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
    web.run_app(app, port=8080, access_log=None, print=None)
@@ -123,5 +122,3 @@ def start_api_server():
 if __name__ == '__main__':
    print("\033[32m ** Comfly Loaded :\033[33m fly, just fly\033[0m")
    start_api_server()
-
-

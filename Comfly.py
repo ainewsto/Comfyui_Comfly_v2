@@ -223,6 +223,7 @@ class Comfly_upload(ComflyBaseNode):
         
 
 class Comfly_Mj(ComflyBaseNode):
+    
     """
     Comfly_Mj node
     Processes text or image inputs using Midjourney AI model and returns the processed results.
