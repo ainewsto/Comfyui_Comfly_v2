@@ -155,29 +155,31 @@ class ComflyBaseNode:
 class Comfly_upload(ComflyBaseNode):
     """
     Comfly_upload node
-
     Uploads an image to Midjourney and returns the URL link.
-
+    
     Inputs:
         image (IMAGE): Input image to be uploaded.
-
+        api_key (STRING, optional): API key for Midjourney.
+        
     Outputs:
         url (STRING): URL link of the uploaded image.
     """
-
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "image": ("IMAGE",),
             },
+            "optional": {
+                "api_key": ("STRING", {"default": ""}),
+            }
         }
-
+        
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("url",)
     FUNCTION = "upload_image"
     CATEGORY = "Comfly/Midjourney"
-
+    
     async def upload_image_to_midjourney(self, image):
         # Convert Tensor to PIL Image
         image = tensor2pil(image)[0]
@@ -204,15 +206,28 @@ class Comfly_upload(ComflyBaseNode):
                             error_message = f"Unexpected response from Midjourney API: {data}"
                             raise Exception(error_message)
                     else:
-                        error_message = f"Error uploading image to Midjourney: {response.status}"
+                        error_text = await response.text()
+                        error_message = f"Error uploading image to Midjourney: {response.status}. Response: {error_text}"
+                        print(f"API Headers: {self.get_headers()}")
+                        print(f"API URL: {self.midjourney_api_url[self.speed]}/mj/submit/upload-discord-images")
                         raise Exception(error_message)
         except asyncio.TimeoutError:
             error_message = f"Timeout error: Request to upload image timed out after {self.timeout} seconds"
             print(error_message)
             raise Exception(error_message)
-
-    def upload_image(self, image):
+        
+    def upload_image(self, image, api_key=""):
         try:
+            # Update API key if provided
+            if api_key.strip():
+                self.api_key = api_key
+                config = get_config()
+                config['api_key'] = api_key
+                save_config(config)
+                
+            if not self.api_key:
+                raise Exception("API key not found. Please provide an API key in the node or in Comflyapi.json")
+                
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             url = loop.run_until_complete(self.upload_image_to_midjourney(image))
