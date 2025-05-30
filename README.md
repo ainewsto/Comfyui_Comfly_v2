@@ -18,6 +18,11 @@
 
 20250518：
 
+`Flux节点`: 新增Comfly_Flux_Kontext节点，支持：flux-kontext-pro和flux-kontext-max模型，按次收费：pro模型大约0.096元，max大约0.192元，比官方便宜很多。
+
+
+20250518：
+
 `Kling节点`: 可灵节点新增kling-v2-master的可灵2.0模型。价格很贵，按需使用。
 
 20250429：
