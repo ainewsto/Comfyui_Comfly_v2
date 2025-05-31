@@ -3656,6 +3656,8 @@ class ComflyChatGPTApi:
 ############################# Flux ###########################
 
 class Comfly_Flux_Kontext:
+    _last_image_url = ""
+    
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -3666,10 +3668,10 @@ class Comfly_Flux_Kontext:
                 "input_image": ("IMAGE",),
                 "model": (["flux-kontext-pro", "flux-kontext-max"], {"default": "flux-kontext-pro"}),
                 "apikey": ("STRING", {"default": ""}),
-                "aspect_ratio": (["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9", "9:21"], 
-                         {"default": "1:1"}),
-                "n": ("INT", {"default": 1, "min": 1, "max": 4}),
-                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647})
+                "aspect_ratio": (["match_input_image", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21", "2:1", "1:2"], 
+                         {"default": "match_input_image"}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+                "clear_image": ("BOOLEAN", {"default": True})
             }
         }
     
@@ -3719,7 +3721,7 @@ class Comfly_Flux_Kontext:
             return None
     
     def generate_image(self, prompt, input_image=None, model="flux-kontext-pro", 
-                      apikey="", aspect_ratio="1:1", n=1, seed=-1):
+                      apikey="", aspect_ratio="match_input_image", seed=-1, clear_image=True):
         if apikey.strip():
             self.api_key = apikey
             config = get_config()
@@ -3741,21 +3743,33 @@ class Comfly_Flux_Kontext:
             pbar.update_absolute(10)
 
             final_prompt = prompt
-            if input_image is not None:
+            input_aspect_ratio = aspect_ratio
+            custom_dimensions = None
 
+            if not clear_image and Comfly_Flux_Kontext._last_image_url:
+                final_prompt = f"{Comfly_Flux_Kontext._last_image_url} {prompt}"
+
+            elif input_image is not None:
                 image_url = self.upload_image(input_image)
                 if image_url:
-
                     final_prompt = f"{image_url} {prompt}"
+
+                    if aspect_ratio == "match_input_image":
+                        pil_image = tensor2pil(input_image)[0]
+                        width, height = pil_image.size
+                        custom_dimensions = {"width": width, "height": height}
                 else:
                     print("Failed to upload image, proceeding with text prompt only")
 
             payload = {
                 "prompt": final_prompt,
-                "n": n,
-                "model": model,
-                "size": aspect_ratio 
+                "model": model
             }
+
+            if custom_dimensions and aspect_ratio == "match_input_image":
+                payload.update(custom_dimensions)
+            else:
+                payload["aspect_ratio"] = input_aspect_ratio
 
             if seed != -1:
                 payload["seed"] = seed
@@ -3818,6 +3832,10 @@ class Comfly_Flux_Kontext:
             
             if generated_tensors:
                 combined_tensor = torch.cat(generated_tensors, dim=0)
+ 
+                if image_urls:
+                    Comfly_Flux_Kontext._last_image_url = image_urls[0]
+                
                 return (combined_tensor, "\n".join(image_urls))
             else:
                 error_message = "Failed to process any images"
