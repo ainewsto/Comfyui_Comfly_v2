@@ -3668,8 +3668,10 @@ class Comfly_Flux_Kontext:
                 "input_image": ("IMAGE",),
                 "model": (["flux-kontext-pro", "flux-kontext-max"], {"default": "flux-kontext-pro"}),
                 "apikey": ("STRING", {"default": ""}),
-                "aspect_ratio": (["match_input_image", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21", "2:1", "1:2"], 
-                         {"default": "match_input_image"}),
+                "aspect_ratio": (["21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"], 
+                         {"default": "16:9"}),
+                "guidance": ("FLOAT", {"default": 3.5, "min": 1.0, "max": 20.0, "step": 0.5}),
+                "num_of_images": ("INT", {"default": 1, "min": 1, "max": 4}),
                 "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
                 "clear_image": ("BOOLEAN", {"default": True})
             }
@@ -3721,7 +3723,8 @@ class Comfly_Flux_Kontext:
             return None
     
     def generate_image(self, prompt, input_image=None, model="flux-kontext-pro", 
-                      apikey="", aspect_ratio="match_input_image", seed=-1, clear_image=True):
+                      apikey="", aspect_ratio="Default", guidance=3.5, num_of_images=1,
+                      seed=-1, clear_image=True):
         if apikey.strip():
             self.api_key = apikey
             config = get_config()
@@ -3743,7 +3746,6 @@ class Comfly_Flux_Kontext:
             pbar.update_absolute(10)
 
             final_prompt = prompt
-            input_aspect_ratio = aspect_ratio
             custom_dimensions = None
 
             if not clear_image and Comfly_Flux_Kontext._last_image_url:
@@ -3763,13 +3765,15 @@ class Comfly_Flux_Kontext:
 
             payload = {
                 "prompt": final_prompt,
-                "model": model
+                "model": model,
+                "n": num_of_images,  
+                "guidance_scale": guidance  
             }
 
             if custom_dimensions and aspect_ratio == "match_input_image":
                 payload.update(custom_dimensions)
             else:
-                payload["aspect_ratio"] = input_aspect_ratio
+                payload["aspect_ratio"] = aspect_ratio
 
             if seed != -1:
                 payload["seed"] = seed
