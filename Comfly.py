@@ -4270,6 +4270,7 @@ NODE_CLASS_MAPPINGS = {
     "ComflyJimengVideoApi": ComflyJimengVideoApi,
     "Comfly_Flux_Kontext": Comfly_Flux_Kontext,
     "Comfly_Flux_Kontext_Edit": Comfly_Flux_Kontext_Edit,
+    "Comfly_Flux_Kontext_bfl": Comfly_Flux_Kontext_bfl,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -4292,4 +4293,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ComflyJimengVideoApi": "Comfly Jimeng Video API",
     "Comfly_Flux_Kontext": "Comfly_Flux_Kontext",
     "Comfly_Flux_Kontext_Edit": "Comfly_Flux_Kontext_Edit",
+    "Comfly_Flux_Kontext_bfl": "Comfly_Flux_Kontext_bfl",
 }
