@@ -175,14 +175,12 @@ class ComflyBaseNode:
 
 
 class Comfly_upload(ComflyBaseNode):
+    
     """
     Comfly_upload node
     Uploads an image to Midjourney and returns the URL link.
-    
     Inputs:
         image (IMAGE): Input image to be uploaded.
-        api_key (STRING, optional): API key for Midjourney.
-        
     Outputs:
         url (STRING): URL link of the uploaded image.
     """
@@ -191,65 +189,76 @@ class Comfly_upload(ComflyBaseNode):
         return {
             "required": {
                 "image": ("IMAGE",),
-            },
-            "optional": {
                 "api_key": ("STRING", {"default": ""}),
-            }
+            },
         }
-        
+    
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("url",)
     FUNCTION = "upload_image"
     CATEGORY = "Comfly-v2/Midjourney"
-    
+
     async def upload_image_to_midjourney(self, image):
-        # Convert Tensor to PIL Image
         image = tensor2pil(image)[0]
-        # Encode the image as base64
         buffered = BytesIO()
-        image_format = "PNG"  # Specify the desired image format
+        image_format = "PNG"
         image.save(buffered, format=image_format)
         image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        # Prepare the request payload
+
         payload = {
             "base64Array": [f"data:image/{image_format.lower()};base64,{image_base64}"],
             "instanceId": "",
             "notifyHook": ""
         }
-        # Send the POST request to upload the image
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(f"{self.midjourney_api_url[self.speed]}/mj/submit/upload-discord-images", headers=self.get_headers(), json=payload, timeout=self.timeout) as response:
                     if response.status == 200:
-                        data = await response.json()
-                        if "result" in data and data["result"]:
-                            return data["result"][0]
-                        else:
-                            error_message = f"Unexpected response from Midjourney API: {data}"
-                            raise Exception(error_message)
+                        try:
+                            data = await response.json()
+                            if "result" in data and data["result"]:
+                                return data["result"][0]
+                            else:
+                                error_message = f"Unexpected response from Midjourney API: {data}"
+                                raise Exception(error_message)
+                        except aiohttp.client_exceptions.ContentTypeError:
+                            text_response = await response.text()
+                            print(f"API returned non-JSON response: {text_response}")
+                            try:
+                                import json
+                                data = json.loads(text_response)
+                                if "result" in data and data["result"]:
+                                    return data["result"][0]
+                                else:
+                                    raise Exception(f"Invalid response format: {text_response}")
+                            except json.JSONDecodeError:
+                                if text_response and len(text_response) < 100:
+                                    return text_response.strip()
+                                raise Exception(f"Invalid response format: {text_response}")
                     else:
-                        error_text = await response.text()
-                        error_message = f"Error uploading image to Midjourney: {response.status}. Response: {error_text}"
-                        print(f"API Headers: {self.get_headers()}")
-                        print(f"API URL: {self.midjourney_api_url[self.speed]}/mj/submit/upload-discord-images")
+                        error_message = f"Error uploading image to Midjourney: {response.status}"
+                        try:
+                            error_details = await response.text()
+                            error_message += f" - {error_details}"
+                        except:
+                            pass
                         raise Exception(error_message)
+                        
         except asyncio.TimeoutError:
             error_message = f"Timeout error: Request to upload image timed out after {self.timeout} seconds"
             print(error_message)
             raise Exception(error_message)
+
         
     def upload_image(self, image, api_key=""):
+        if api_key.strip():
+            self.api_key = api_key
+            config = get_config()
+            config['api_key'] = api_key
+            save_config(config)
+            
         try:
-            # Update API key if provided
-            if api_key.strip():
-                self.api_key = api_key
-                config = get_config()
-                config['api_key'] = api_key
-                save_config(config)
-                
-            if not self.api_key:
-                raise Exception("API key not found. Please provide an API key in the node or in Comflyapi.json")
-                
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             url = loop.run_until_complete(self.upload_image_to_midjourney(image))
@@ -257,7 +266,7 @@ class Comfly_upload(ComflyBaseNode):
             return (url,)
         except Exception as e:
             raise e
-
+        
 
 class Comfly_Mj(ComflyBaseNode):
     """
@@ -449,8 +458,8 @@ class Comfly_Mj(ComflyBaseNode):
             return f"MJ::Outpaint::50::{index}::{uuid}::SOLO"
         else:
             return f"MJ::JOB::{action}::{index}::{uuid}"
-
-
+    
+    
 class Comfly_Mju(ComflyBaseNode):
     class MidjourneyError(Exception):
         pass
@@ -624,16 +633,34 @@ class Comfly_Mju(ComflyBaseNode):
             async with aiohttp.ClientSession() as session:
                 async with session.post(f"{self.midjourney_api_url[self.speed]}/mj/submit/action", headers=headers, json=payload, timeout=self.timeout) as response:
                     if response.status == 200:
-                        data = await response.json()
-                        return data
+                        try:
+                            data = await response.json()
+                            return data
+                        except aiohttp.client_exceptions.ContentTypeError:
+                            text_response = await response.text()
+                            print(f"API returned non-JSON response: {text_response}")
+                            try:
+                                import json
+                                data = json.loads(text_response)
+                                return data
+                            except json.JSONDecodeError:
+                                if text_response and len(text_response) < 100:
+                                    return {"result": text_response.strip()}
+                                raise Exception(f"Invalid response format: {text_response}")
                     else:
                         error_message = f"Error submitting Midjourney action: {response.status}"
                         print(error_message)
+                        try:
+                            error_details = await response.text()
+                            error_message += f" - {error_details}"
+                        except:
+                            pass
                         return error_message
         except asyncio.TimeoutError:
             error_message = f"Timeout error: Request to submit action timed out after {self.timeout} seconds"
             print(error_message)
             raise Exception(error_message)
+
 
     async def midjourney_fetch_task_result(self, taskId):
         headers = self.get_headers()
@@ -773,11 +800,28 @@ class Comfly_Mjv(ComflyBaseNode):
         async with aiohttp.ClientSession() as session:
             async with session.post(f"{self.midjourney_api_url[self.speed]}/mj/submit/action", headers=headers, json=payload) as response: 
                 if response.status == 200:
-                    data = await response.json()
-                    return data
+                    try:
+                        data = await response.json()
+                        return data
+                    except aiohttp.client_exceptions.ContentTypeError:
+                        text_response = await response.text()
+                        print(f"API returned non-JSON response: {text_response}")
+                        try:
+                            import json
+                            data = json.loads(text_response)
+                            return data
+                        except json.JSONDecodeError:
+                            if text_response and len(text_response) < 100:
+                                return {"result": text_response.strip()}
+                            raise Exception(f"Invalid response format: {text_response}")
                 else:
                     error_message = f"Error submitting Midjourney action: {response.status}"
                     print(error_message)
+                    try:
+                        error_details = await response.text()
+                        error_message += f" - {error_details}"
+                    except:
+                        pass
                     raise Exception(error_message)
 
     def run(self, taskId, upsample_v6_2x_subtle=False, upsample_v6_2x_creative=False, costume_zoom=False, zoom="", pan_left=False, pan_right=False, pan_up=False, pan_down=False, api_key=""):
@@ -917,6 +961,7 @@ class Comfly_Mjv(ComflyBaseNode):
                     error_message = f"Error fetching Midjourney task result: {response.status}"
                     print(error_message)
                     raise Exception(error_message)
+
 
 
 class Comfly_mjstyle:
