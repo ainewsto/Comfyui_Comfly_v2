@@ -17,8 +17,12 @@ import base64
 import uuid
 import folder_paths
 import mimetypes
+import cv2
+import shutil
 from .utils import pil2tensor, tensor2pil
 from comfy.utils import common_upscale
+from comfy.comfy_types import IO
+
 
 
 def get_config():
@@ -34,6 +38,53 @@ def save_config(config):
     config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Comflyapi.json')
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=4)
+
+
+class ComflyVideoAdapter:
+    def __init__(self, video_path_or_url):
+        if video_path_or_url.startswith('http'):
+            self.is_url = True
+            self.video_url = video_path_or_url
+            self.video_path = None
+        else:
+            self.is_url = False
+            self.video_path = video_path_or_url
+            self.video_url = None
+        
+    def get_dimensions(self):
+        if self.is_url:
+            return 1280, 720
+        else:
+            try: 
+                cap = cv2.VideoCapture(self.video_path)
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                cap.release()
+                return width, height
+            except Exception as e:
+                print(f"Error getting video dimensions: {str(e)}")
+                return 1280, 720
+            
+    def save_to(self, output_path, format="auto", codec="auto", metadata=None):
+        if self.is_url:
+            try:
+                response = requests.get(self.video_url, stream=True)
+                response.raise_for_status()
+                
+                with open(output_path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                return True
+            except Exception as e:
+                print(f"Error downloading video from URL: {str(e)}")
+                return False
+        else:
+            try:
+                shutil.copyfile(self.video_path, output_path)
+                return True
+            except Exception as e:
+                print(f"Error saving video: {str(e)}")
+                return False
 
 
 
@@ -237,6 +288,7 @@ class ComflyBaseNode:
             raise Exception(error_message)
 
 
+
 class Comfly_upload(ComflyBaseNode):
     """
     Comfly_upload node
@@ -342,7 +394,6 @@ class Comfly_upload(ComflyBaseNode):
         
 
 class Comfly_Mj(ComflyBaseNode):
-    
     """
     Comfly_Mj node
     Processes text or image inputs using Midjourney AI model and returns the processed results.
@@ -1284,7 +1335,7 @@ class Comfly_kling_text2video:
             }
         }
 
-    RETURN_TYPES = ("VIDEO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_TYPES = (IO.VIDEO, "STRING", "STRING", "STRING", "STRING")
     RETURN_NAMES = ("video", "video_url", "task_id", "video_id", "response")
     FUNCTION = "generate_video"
     CATEGORY = "Comfly-v2/Comfly_kling"
@@ -1429,15 +1480,16 @@ class Comfly_kling_text2video:
                     pbar.update_absolute(100) 
                     video_url = status_result["data"]["task_result"]["videos"][0]["url"]
                     video_id = status_result["data"]["task_result"]["videos"][0]["id"]
-                    video_path = self.download_video(video_url)
 
                     response_data = {
                         "task_status": "succeed",
                         "task_status_msg": "Video generated successfully",
                         "progress": 100,
+                        "video_url": video_url  
                     }
                     
-                    return (video_path, video_url, task_id, video_id, json.dumps(response_data))
+                    video_adapter = ComflyVideoAdapter(video_url)
+                    return (video_adapter, video_url, task_id, video_id, json.dumps(response_data))
                 
                 elif status_result["data"]["task_status"] == "failed":
                     error_msg = status_result["data"].get("task_status_msg", "Unknown error")
@@ -1451,18 +1503,6 @@ class Comfly_kling_text2video:
             error_response = {"task_status": "failed", "task_status_msg": f"Error generating video: {str(e)}"}
             print(f"Error generating video: {str(e)}")
             return ("", "", "", "", json.dumps(error_response))
-
-    def download_video(self, video_url):
-        input_path = folder_paths.get_output_directory()
-        video_filename = f"{str(uuid.uuid4())}.mp4"
-        video_path = os.path.join(input_path, video_filename)
-
-        response = requests.get(video_url, stream=True)
-        with open(video_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-        return video_path
 
 
 
@@ -1492,7 +1532,7 @@ class Comfly_kling_image2video:
             }
         }
 
-    RETURN_TYPES = ("VIDEO", "STRING", "STRING", "STRING", "STRING")
+    RETURN_TYPES = (IO.VIDEO, "STRING", "STRING", "STRING", "STRING")
     RETURN_NAMES = ("video", "video_url", "task_id", "video_id", "response")
     FUNCTION = "generate_video"
     CATEGORY = "Comfly-v2/Comfly_kling"
@@ -1664,16 +1704,16 @@ class Comfly_kling_image2video:
                     pbar.update_absolute(100) 
                     video_url = status_result["data"]["task_result"]["videos"][0]["url"]
                     video_id = status_result["data"]["task_result"]["videos"][0]["id"]
-                    video_path = self.download_video(video_url)
                     
-                    # Format the response with task status information
                     response_data = {
                         "task_status": "succeed",
                         "task_status_msg": "Video generated successfully",
                         "progress": 100,
+                        "video_url": video_url
                     }
                     
-                    return (video_path, video_url, task_id, video_id, json.dumps(response_data))
+                    video_adapter = ComflyVideoAdapter(video_url)
+                    return (video_adapter, video_url, task_id, video_id, json.dumps(response_data))
                 
                 elif status_result["data"]["task_status"] == "failed":
                     error_msg = status_result["data"].get("task_status_msg", "Unknown error")
@@ -1704,19 +1744,6 @@ class Comfly_kling_image2video:
         }
         return json.dumps(camera_mappings.get(camera, camera_mappings["none"]))
 
-    def download_video(self, video_url):
-        input_path = folder_paths.get_output_directory()
-        video_filename = f"{str(uuid.uuid4())}.mp4"
-        video_path = os.path.join(input_path, video_filename)
-
-        response = requests.get(video_url, stream=True)
-        with open(video_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-        return video_path
-
-
 
 class Comfly_video_extend:
     @classmethod
@@ -1725,10 +1752,13 @@ class Comfly_video_extend:
             "required": {
                 "video_id": ("STRING", {"default": "", "multiline": False, "forceInput": True}),
                 "prompt": ("STRING", {"default": "", "multiline": True}),
+            },
+            "optional": {
+                "api_key": ("STRING", {"default": ""})
             }
         }
 
-    RETURN_TYPES = ("VIDEO", "STRING", "STRING")
+    RETURN_TYPES = (IO.VIDEO, "STRING", "STRING")
     RETURN_NAMES = ("video", "video_id", "response")
     FUNCTION = "extend_video"
     CATEGORY = "Comfly-v2/Comfly_kling"
@@ -1737,7 +1767,13 @@ class Comfly_video_extend:
         self.api_key = get_config().get('api_key', '')
         self.timeout = 300
 
-    def extend_video(self, video_id, prompt=""):
+    def extend_video(self, video_id, prompt="", api_key=""):
+        if api_key.strip():
+            self.api_key = api_key
+            config = get_config()
+            config['api_key'] = api_key
+            save_config(config)
+            
         if not self.api_key:
             error_response = {"task_status": "failed", "task_status_msg": "API key not found in Comflyapi.json"}
             return ("", "", json.dumps(error_response))
@@ -1788,16 +1824,16 @@ class Comfly_video_extend:
                 if status_result["data"]["task_status"] == "succeed":
                     video_url = status_result["data"]["task_result"]["videos"][0]["url"]
                     new_video_id = status_result["data"]["task_result"]["videos"][0]["id"]
-                    video_path = self.download_video(video_url)
                     
-                    # Format the response with task status information
                     response_data = {
                         "task_status": "succeed",
                         "task_status_msg": "Video extended successfully",
                         "progress": 100,
+                        "video_url": video_url
                     }
                     
-                    return (video_path, new_video_id, json.dumps(response_data))
+                    video_adapter = ComflyVideoAdapter(video_url)
+                    return (video_adapter, new_video_id, json.dumps(response_data))
                 
                 elif status_result["data"]["task_status"] == "failed":
                     error_msg = status_result["data"].get("task_status_msg", "Unknown error")
@@ -1812,18 +1848,6 @@ class Comfly_video_extend:
             error_response = {"task_status": "failed", "task_status_msg": f"Error extending video: {str(e)}"}
             print(f"Error extending video: {str(e)}")
             return ("", "", json.dumps(error_response))
-
-    def download_video(self, video_url):
-        input_path = folder_paths.get_output_directory()
-        video_filename = f"{str(uuid.uuid4())}.mp4"
-        video_path = os.path.join(input_path, video_filename)
-
-        response = requests.get(video_url, stream=True)
-        with open(video_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-        return video_path
 
 
 class Comfly_lip_sync:
@@ -1910,6 +1934,7 @@ class Comfly_lip_sync:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647})
             },
             "optional": {
+                "api_key": ("STRING", {"default": ""}),
                 "video_url": ("STRING", {"default": ""}),
                 "audio_type": (["file", "url"], {"default": "file"}),
                 "audio_file": ("STRING", {"default": ""}),
@@ -1917,7 +1942,7 @@ class Comfly_lip_sync:
             }
         }
 
-    RETURN_TYPES = ("VIDEO", "STRING", "STRING", "STRING")
+    RETURN_TYPES = (IO.VIDEO, "STRING", "STRING", "STRING")
     RETURN_NAMES = ("video", "video_url", "task_id", "response")
     FUNCTION = "process_lip_sync"
     CATEGORY = "Comfly-v2/Comfly_kling"
@@ -1929,8 +1954,14 @@ class Comfly_lip_sync:
         self.en_voice_map = {name: voice_id for name, voice_id in self.__class__.en_voices}
         
     def process_lip_sync(self, video_id, task_id, mode, text, voice_language, zh_voice, en_voice, voice_speed, seed=0,
-                    video_url="", audio_type="file", audio_file="", audio_url=""):
+                    video_url="", audio_type="file", audio_file="", audio_url="", api_key=""):
     
+        if api_key.strip():
+            self.api_key = api_key
+            config = get_config()
+            config['api_key'] = api_key
+            save_config(config)
+            
         if not self.api_key:
             error_response = {"task_status": "failed", "task_status_msg": "API key not found in Comflyapi.json"}
             return ("", "", "", json.dumps(error_response))
@@ -1996,16 +2027,16 @@ class Comfly_lip_sync:
                 elif status_result["data"]["task_status"] == "succeed":
                     pbar.update_absolute(100)  
                     video_url = status_result["data"]["task_result"]["videos"][0]["url"]
-                    video_path = self.download_video(video_url)
-                        
-                    # Format the response with task status information
+
                     response_data = {
                         "task_status": "succeed",
                         "task_status_msg": "Lip sync completed successfully",
                         "progress": 100,
+                        "video_url": video_url
                     }
-                        
-                    return (video_path, video_url, task_id, json.dumps(response_data))
+                    
+                    video_adapter = ComflyVideoAdapter(video_url)
+                    return (video_adapter, video_url, task_id, json.dumps(response_data))
                         
                 elif status_result["data"]["task_status"] == "failed":
                     error_msg = status_result["data"].get("task_status_msg", "Unknown error")
@@ -2020,41 +2051,7 @@ class Comfly_lip_sync:
             error_response = {"task_status": "failed", "task_status_msg": f"Error in lip sync process: {str(e)}"}
             print(f"Error in lip sync process: {str(e)}")
             return ("", "", "", json.dumps(error_response))
-
-    def download_video(self, video_url):
-        input_path = folder_paths.get_output_directory()
-        video_filename = f"{str(uuid.uuid4())}.mp4"
-        video_path = os.path.join(input_path, video_filename)
-
-        response = requests.get(video_url, stream=True)
-        with open(video_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-        return video_path
-
-
-class Comfly_kling_videoPreview:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {"required":{
-            "video":("VIDEO",),
-        }}
-    
-    CATEGORY = "Comfly-v2/Comfly_kling"
-    DESCRIPTION = "Preview the generated video."
-
-    RETURN_TYPES = ()
-
-    OUTPUT_NODE = True
-
-    FUNCTION = "Preview_video"
-
-    def Preview_video(self, video):
-        video_name = os.path.basename(video)
-        video_path_name = os.path.basename(os.path.dirname(video))
-        return {"ui":{"video":[video_name,video_path_name]}}
-    
+   
 
 
 ############################# Gemini ###########################
@@ -2758,7 +2755,7 @@ class ComflyJimengVideoApi:
             }
         }
     
-    RETURN_TYPES = ("VIDEO", "STRING", "STRING", "STRING")
+    RETURN_TYPES = (IO.VIDEO, "STRING", "STRING", "STRING")
     RETURN_NAMES = ("video", "task_id", "response", "video_url")
     FUNCTION = "generate_video"
     CATEGORY = "Comfly-v2/Doubao"
@@ -2957,12 +2954,12 @@ class ComflyJimengVideoApi:
                 print(error_message)
                 return ("", task_id, json.dumps({"code": "error", "message": error_message}), "")
 
-            pbar.update_absolute(95)
-            video_path = self.download_video(video_url)
-
-            pbar.update_absolute(100)
-            print(f"Video generation completed, saved to: {video_path}")            
-            return (video_path, task_id, json.dumps({"code": "success", "url": video_url}), video_url)
+            if video_url:
+                pbar.update_absolute(95)
+                print(f"Video generation completed, URL: {video_url}")            
+                
+                video_adapter = ComflyVideoAdapter(video_url)
+                return (video_adapter, task_id, json.dumps({"code": "success", "url": video_url}), video_url)
             
         except Exception as e:
             error_message = f"Error generating video: {str(e)}"
@@ -2971,26 +2968,6 @@ class ComflyJimengVideoApi:
             traceback.print_exc()
             return ("", "", json.dumps({"code": "error", "message": error_message}), "")
 
-
-    def download_video(self, video_url):
-        """Download video from URL and save to output directory"""
-        try:
-            input_path = folder_paths.get_output_directory()
-            video_filename = f"jimeng_{str(uuid.uuid4())}.mp4"
-            video_path = os.path.join(input_path, video_filename)
-            
-            response = requests.get(video_url, stream=True)
-            response.raise_for_status()
-            
-            with open(video_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    
-            return video_path
-            
-        except Exception as e:
-            print(f"Error downloading video: {str(e)}")
-            raise e
 
 
 class ComflySeededit:
@@ -4004,8 +3981,8 @@ class ComflyChatGPTApi:
             raise TimeoutError(f"API request timed out after {self.timeout} seconds")
         except Exception as e:
             raise Exception(f"Error in streaming response: {str(e)}")
-        
-        
+
+
 
 ############################# Flux ###########################
 
@@ -4226,8 +4203,8 @@ class Comfly_Flux_Kontext:
                 blank_tensor = pil2tensor(blank_image)
                 return (blank_tensor, "")
             return (input_image, "")
-
-
+         
+        
 class Comfly_Flux_Kontext_Edit:
     @classmethod
     def INPUT_TYPES(cls):
@@ -4440,7 +4417,7 @@ class Comfly_Flux_Kontext_bfl:
     def __init__(self):
         self.api_key = get_config().get('api_key', '')
         self.timeout = 300
-        
+
     def get_headers(self):
         return {
             "Content-Type": "application/json",
@@ -4616,7 +4593,7 @@ class Comfly_Googel_Veo3:
             }
         }
     
-    RETURN_TYPES = ("VIDEO", "STRING", "STRING")
+    RETURN_TYPES = (IO.VIDEO, "STRING", "STRING")
     RETURN_NAMES = ("video", "video_url", "response")
     FUNCTION = "generate_video"
     CATEGORY = "Comfly-v2/Google"
@@ -4750,47 +4727,26 @@ class Comfly_Googel_Veo3:
                 print(error_message)
                 return ("", "", json.dumps({"code": "error", "message": error_message}))
             
-            pbar.update_absolute(95)
-
-            video_path = self.download_video(video_url)
-            
-            pbar.update_absolute(100)
-            
-            response_data = {
-                "code": "success",
-                "task_id": task_id,
-                "prompt": prompt,
-                "model": model,
-                "enhance_prompt": enhance_prompt
-            }
-            
-            return (video_path, video_url, json.dumps(response_data))
+            if video_url:
+                pbar.update_absolute(95)
+                
+                response_data = {
+                    "code": "success",
+                    "task_id": task_id,
+                    "prompt": prompt,
+                    "model": model,
+                    "enhance_prompt": enhance_prompt,
+                    "video_url": video_url
+                }
+                
+                video_adapter = ComflyVideoAdapter(video_url)
+                return (video_adapter, video_url, json.dumps(response_data))
             
         except Exception as e:
             error_message = f"Error generating video: {str(e)}"
             print(error_message)
             return ("", "", json.dumps({"code": "error", "message": error_message}))
     
-    def download_video(self, video_url):
-        """Download video from URL and save to output directory"""
-        try:
-            input_path = folder_paths.get_output_directory()
-            video_filename = f"veo_{str(uuid.uuid4())}.mp4"
-            video_path = os.path.join(input_path, video_filename)
-            
-            response = requests.get(video_url, stream=True)
-            response.raise_for_status()
-            
-            with open(video_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    
-            return video_path
-            
-        except Exception as e:
-            print(f"Error downloading video: {str(e)}")
-            raise e
-
 
 WEB_DIRECTORY = "./web"    
         
@@ -4804,7 +4760,6 @@ NODE_CLASS_MAPPINGS = {
     "Comfly_kling_image2video": Comfly_kling_image2video,
     "Comfly_video_extend": Comfly_video_extend,
     "Comfly_lip_sync": Comfly_lip_sync,
-    "Comfly_kling_videoPreview": Comfly_kling_videoPreview,  
     "ComflyGeminiAPI": ComflyGeminiAPI,
     "ComflySeededit": ComflySeededit,
     "ComflyChatGPTApi": ComflyChatGPTApi,
@@ -4828,7 +4783,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Comfly_kling_image2video": "Comfly_kling_image2video",
     "Comfly_video_extend": "Comfly_video_extend",
     "Comfly_lip_sync": "Comfly_lip_sync",
-    "Comfly_kling_videoPreview": "Comfly_kling_videoPreview",  
     "ComflyGeminiAPI": "Comfly Gemini API",
     "ComflySeededit": "Comfly Doubao SeedEdit",
     "ComflyChatGPTApi": "Comfly ChatGPT Api",
