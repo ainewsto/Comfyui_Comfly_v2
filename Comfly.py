@@ -6696,7 +6696,8 @@ class Comfly_nano_banana_edit:
                 "image3": ("IMAGE",),
                 "image4": ("IMAGE",),
                 "apikey": ("STRING", {"default": ""}),
-                "response_format": (["url", "b64_json"], {"default": "url"})
+                "response_format": (["url", "b64_json"], {"default": "url"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647})  
             }
         }
     
@@ -6741,7 +6742,7 @@ class Comfly_nano_banana_edit:
     
     def generate_image(self, prompt, mode="text2img", model="nano-banana", aspect_ratio="1:1", 
                       image1=None, image2=None, image3=None, image4=None,
-                      apikey="", response_format="url"):
+                      apikey="", response_format="url", seed=0):  
         if apikey.strip():
             self.api_key = apikey
             config = get_config()
@@ -6777,6 +6778,9 @@ class Comfly_nano_banana_edit:
                     
                 if response_format:
                     payload["response_format"] = response_format
+
+                if seed > 0:
+                    payload["seed"] = seed
                 
                 response = requests.post(
                     "https://ai.comfly.chat/v1/images/generations",
@@ -6803,6 +6807,9 @@ class Comfly_nano_banana_edit:
                 
                 if response_format:
                     data["response_format"] = response_format
+
+                if seed > 0:
+                    data["seed"] = str(seed)
                 
                 response = requests.post(
                     "https://ai.comfly.chat/v1/images/edits",
@@ -6835,6 +6842,9 @@ class Comfly_nano_banana_edit:
 
             if mode == "text2img" and size:
                 response_info += f"Aspect ratio: {aspect_ratio} (size: {size})\n"
+
+            if seed > 0:
+                response_info += f"Seed: {seed}\n"
             
             for i, item in enumerate(result["data"]):
                 pbar.update_absolute(50 + (i+1) * 40 // len(result["data"]))
