@@ -6,6 +6,10 @@
 
 # 更新 Update：
 
+20250903：
+
+`Comfly_gpt_image_1_edit节点`: 参数新增input fidelity，partial_images参数
+
 20250902：
 
 `Comfly_nano_banana_edit节点`: 新增节点Comfly_nano_banana_edit，这个可以选择生成图片的尺寸，模型只能是：nano-banana
