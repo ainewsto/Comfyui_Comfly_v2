@@ -1,0 +1,15 @@
+[project]
+name = "comfly_v2"
+description = "NODES: Comfly_Mj, Comfly_mjstyle, Comfly_upload, Comfly_Mju, Comfly_Mjv, Comfly_kling_text2video, Comfly_kling_image2video, Comfly_video_extend, Comfly_lip_sync, Comfly_kling_videoPreview, Comfly Gemini API, Comfly Doubao SeedEdit, Comfly ChatGPT Api,Comfly Jimeng API, Comfly_gpt_image_1_edit, Comfly_gpt_image_1"
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["aiohttp", "aiohttp-cors", "GitPython", "numpy", "Pillow", "requests", "torch", "GitPython", "matrix-client", "transformers", "huggingface-hub", "psutil"]
+
+[project.urls]
+Repository = "https://github.com/ainewsto/Comfyui_Comfly_v2"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "Comfyui_Comfly_v2"
+Icon = ""
