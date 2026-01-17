@@ -1113,7 +1113,6 @@ class ComflyGeminiTextOnly:
 
         try:
             content = [{"type": "text", "text": prompt}]
-。
             if video is not None:
                 video_url = getattr(video, 'video_url', None)
                 if video_url:
